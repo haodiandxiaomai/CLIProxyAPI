@@ -1,0 +1,59 @@
+name: Build CLIProxyAPI
+
+on:
+  workflow_dispatch:
+    inputs:
+      goos:
+        description: '目标系统'
+        required: true
+        default: 'linux'
+        type: choice
+        options:
+          - linux
+          - darwin
+          - windows
+      goarch:
+        description: '目标架构'
+        required: true
+        default: 'amd64'
+        type: choice
+        options:
+          - amd64
+          - arm64
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout 代码
+        uses: actions/checkout@v4
+
+      - name: 拉取 models.json
+        run: |
+          git fetch --depth 1 https://github.com/router-for-me/models.git main
+          git show FETCH_HEAD:models.json > internal/registry/models/models.json
+
+      - name: 安装 Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: 编译
+        env:
+          CGO_ENABLED: '0'
+          GOOS: ${{ inputs.goos }}
+          GOARCH: ${{ inputs.goarch }}
+        run: |
+          EXT=""
+          if [ "$GOOS" = "windows" ]; then EXT=".exe"; fi
+          go build -ldflags="-s -w" -o cli-proxy-api${EXT} ./cmd/server
+          echo "构建完成: cli-proxy-api${EXT}"
+          file cli-proxy-api${EXT} || true
+
+      - name: 上传构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: cli-proxy-api-${{ inputs.goos }}-${{ inputs.goarch }}
+          path: cli-proxy-api*
+          retention-days: 30
