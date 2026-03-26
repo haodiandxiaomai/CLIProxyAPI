@@ -1,0 +1,23 @@
+name: build
+on:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch models
+        run: |
+          git fetch --depth 1 https://github.com/router-for-me/models.git main
+          git show FETCH_HEAD:models.json > internal/registry/models/models.json
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Build
+        run: |
+          CGO_ENABLED=0 go build -o cli-proxy-api ./cmd/server
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cli-proxy-api
+          path: cli-proxy-api
